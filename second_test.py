@@ -154,6 +154,11 @@ class Engine:
         self.P += move_vec
         self.cog = self.calc_center_of_gravity(self.P)
 
+    def apply_vertex_shift(self, column, move_vec):
+        # Movement occurs in xy plane
+        move_vec = np.append(move_vec, 0) 
+        self.P[:, column] += move_vec * 0.005
+
     def apply_rotation(self, alpha, beta, gamma):
         A = np.array(
             [
@@ -190,7 +195,8 @@ class Engine:
 
 
 def main_loop(dots, locs, lines, sides):
-    rot_x, rot_y, rot_z = 0.0004, 0.0015, 0.0003
+    base_rot_x, base_rot_y, base_rot_z = 0.0004, 0.0015, 0.0003
+    rot_x, rot_y, rot_z = base_rot_x, base_rot_y, base_rot_z
 
     # Move back starting position slightly
     locs = locs + np.array([[0], [0], [10]], dtype=float)
@@ -226,26 +232,31 @@ def main_loop(dots, locs, lines, sides):
                     handle_mouseclick = True
                     mouse_x, mouse_y = pg.mouse.get_pos()
                     mouse_pos = np.array([[mouse_x], [mouse_y]], dtype=int)
+                    pg.mouse.get_rel()
             elif event.type == pg.MOUSEBUTTONUP:
                 if event.button == 1:
+                    rot_x, rot_y, rot_z = base_rot_x, base_rot_y, base_rot_z
                     mouse_drag = False
                     drag_column = None
 
         # Handle key presses
-        movement = np.array([[0], [0], [0]], dtype=float)
+        camera_movement = np.array([[0], [0], [0]], dtype=float)
         keys = pg.key.get_pressed()
         if keys[pg.K_UP]:
-            movement += MV_FWD
+            camera_movement += MV_FWD
         if keys[pg.K_DOWN]:
-            movement += MV_BCK
+            camera_movement += MV_BCK
         if keys[pg.K_LEFT]:
-            movement += MV_LEFT
+            camera_movement += MV_LEFT
         if keys[pg.K_RIGHT]:
-            movement += MV_RIGHT
+            camera_movement += MV_RIGHT
 
         # Calculate new positions
-        engine.apply_movement(movement)
+        engine.apply_movement(camera_movement)
         engine.apply_rotation(rot_x, rot_y, rot_z)
+        if mouse_drag:
+            mouse_move = np.array(pg.mouse.get_rel(), dtype=float)
+            engine.apply_vertex_shift(drag_column, mouse_move)
 
         draw_manager.S = engine.get_screen_location()
 
@@ -254,6 +265,7 @@ def main_loop(dots, locs, lines, sides):
             if mouse_col.size > 0:
                 mouse_drag = True
                 drag_column = mouse_col[0]
+                rot_x, rot_y, rot_z = 0, 0, 0
             handle_mouseclick = False
 
         # Draw all items
