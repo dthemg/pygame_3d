@@ -9,7 +9,7 @@ SCREEN_CENTER = np.array([[CX], [CY]])
 
 FOCAL_LENGTH = 1000
 
-delta = 0.01
+delta = 0.1
 MV_FWD = delta * np.array([[0], [0], [-1]], dtype=float)
 MV_BCK = delta * np.array([[0], [0], [1]], dtype=float)
 MV_RIGHT = delta * np.array([[-1], [0], [0]], dtype=float)
@@ -87,9 +87,7 @@ class Line:
         self.columns = columns
 
     def draw(self, screen, point_locations):
-        gfxdraw.line(
-            screen, *point_locations[:, 0], *point_locations[:, 1],  self.color
-        )
+        gfxdraw.line(screen, *point_locations[:, 0], *point_locations[:, 1], self.color)
 
 
 class Side:
@@ -106,7 +104,7 @@ class Side:
                 point_locations[:, 1],
                 point_locations[:, 2],
                 point_locations[:, 3],
-            )
+            ),
         )
 
 
@@ -141,6 +139,7 @@ class DrawManager:
         if mouse_cols.size > 1:
             mouse_cols = mouse_cols[:1]
         return mouse_cols
+
 
 class Engine:
     def __init__(self, position):
@@ -184,7 +183,6 @@ class Engine:
         P_center = self.P - self.cog
         P_center = np.dot(R, P_center)
         self.P = P_center + self.cog
-        # self.P = np.dot(R, self.P)
 
     def get_screen_location(self):
         pos_float = SCREEN_CENTER + FOCAL_LENGTH / self.P[2, :] * self.P[:2, :]
@@ -205,7 +203,7 @@ def main_loop(dots, locs, lines, sides):
             draw_manager.add_side(ORANGE, side_columns)
         else:
             continue
-            #draw_manager.add_side(BLUE, side_columns)
+            # draw_manager.add_side(BLUE, side_columns)
     for line_columns in lines:
         draw_manager.add_line(WHITE, line_columns)
     for dot_columns in dots:
@@ -258,7 +256,7 @@ def main_loop(dots, locs, lines, sides):
                 drag_column = mouse_col[0]
             handle_mouseclick = False
 
-         # Draw all items
+        # Draw all items
         screen.fill(BLACK)
 
         draw_manager.draw_all_objects()
