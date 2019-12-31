@@ -77,8 +77,8 @@ class Dot:
         self.color = color
         self.columns = column
 
-    def draw(self, screen, point_locations):
-        pg.draw.circle(screen, self.color, point_locations, POINT_SIZE)
+    def draw(self, screen, point_locations, size=POINT_SIZE):
+        pg.draw.circle(screen, self.color, point_locations, size)
 
 
 class Line:
@@ -115,6 +115,7 @@ class DrawManager:
         self.screen = screen
         self.objects = []
         self.S = None
+        self.handle_mouseclick = False
 
     def add_dot(self, color, column):
         dot = Dot(color, column)
@@ -133,6 +134,13 @@ class DrawManager:
             point_locations = self.S[:, draw_object.columns]
             draw_object.draw(self.screen, point_locations)
 
+    def get_mouse_dot(self, mouse_pos):
+        square = np.power(self.S - mouse_pos, 2)
+        dists = np.sqrt(square[0, :] + square[1, :])
+        mouse_cols = np.where(np.isclose(dists, 0, atol=10))[0]
+        if mouse_cols.size > 1:
+            mouse_cols = mouse_cols[:1]
+        return mouse_cols
 
 class Engine:
     def __init__(self, position):
@@ -184,6 +192,8 @@ class Engine:
 
 
 def main_loop(dots, locs, lines, sides):
+    rot_x, rot_y, rot_z = 0.0004, 0.0015, 0.0003
+
     # Move back starting position slightly
     locs = locs + np.array([[0], [0], [10]], dtype=float)
     engine = Engine(locs)
@@ -201,14 +211,27 @@ def main_loop(dots, locs, lines, sides):
     for dot_columns in dots:
         draw_manager.add_dot(WHITE, dot_columns)
 
+    handle_mouseclick = False
+    mouse_drag = False
+    drag_column = None
+
     while True:
-        dt = clock.tick() / 100
+        dt = clock.tick() / 50
 
         # Find exit event
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
                 sys.exit()
+            elif event.type == pg.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    handle_mouseclick = True
+                    mouse_x, mouse_y = pg.mouse.get_pos()
+                    mouse_pos = np.array([[mouse_x], [mouse_y]], dtype=int)
+            elif event.type == pg.MOUSEBUTTONUP:
+                if event.button == 1:
+                    mouse_drag = False
+                    drag_column = None
 
         # Handle key presses
         movement = np.array([[0], [0], [0]], dtype=float)
@@ -224,13 +247,20 @@ def main_loop(dots, locs, lines, sides):
 
         # Calculate new positions
         engine.apply_movement(movement)
-        engine.apply_rotation(0.0004, 0.0015, 0.0003)
+        engine.apply_rotation(rot_x, rot_y, rot_z)
 
-        # Draw all items
+        draw_manager.S = engine.get_screen_location()
+
+        if handle_mouseclick:
+            mouse_col = draw_manager.get_mouse_dot(mouse_pos)
+            if mouse_col.size > 0:
+                mouse_drag = True
+                drag_column = mouse_col[0]
+            handle_mouseclick = False
+
+         # Draw all items
         screen.fill(BLACK)
-        L = engine.get_screen_location()
 
-        draw_manager.S = L
         draw_manager.draw_all_objects()
 
         pg.display.flip()
