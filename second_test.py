@@ -33,67 +33,67 @@ clock = pg.time.Clock()
 # Columns -> positions 1 to 7
 
 
-STARTING_LOCATIONS =  np.array(
-        [
-            [-1, 1, -1, 1, -1, 1, -1, 1],
-            [1, 1, -1, -1, 1, 1, -1, -1],
-            [1, 1, 1, 1, -1, -1, -1, -1],
-        ],
-        dtype=float,
-    )
+STARTING_LOCATIONS = np.array(
+    [
+        [-1, 1, -1, 1, -1, 1, -1, 1],
+        [1, 1, -1, -1, 1, 1, -1, -1],
+        [1, 1, 1, 1, -1, -1, -1, -1],
+    ],
+    dtype=float,
+)
 
 
-STARTING_DOTS = [
-        (0), 
-        (1), 
-        (2), 
-        (3), 
-        (4), 
-        (5), 
-        (6),
-        (7)
-    ]
+STARTING_DOTS = [(0), (1), (2), (3), (4), (5), (6), (7)]
 
 
 STARTING_DIAGS = [
-        (0, 3),
-        (1, 7), 
-        (5, 6),
-        (4, 2),
-        (1, 4),
-        (3, 6),
-        (1, 2),
-        (3, 5), 
-        (4, 7),
-        (0, 6),
-        (0, 5),
-        (2, 7)
-    ]
+    (0, 3),
+    (1, 7),
+    (5, 6),
+    (4, 2),
+    (1, 4),
+    (3, 6),
+    (1, 2),
+    (3, 5),
+    (4, 7),
+    (0, 6),
+    (0, 5),
+    (2, 7),
+]
 
 STARTING_EDGES = [
-        (0, 1),
-        (0, 2),
-        (0, 4),
-        (1, 3),
-        (1, 5),
-        (2, 3),
-        (2, 6),
-        (3, 7),
-        (4, 5),
-        (4, 6),
-        (5, 7),
-        (6, 7),
-    ]
+    (0, 1),
+    (0, 2),
+    (0, 4),
+    (1, 3),
+    (1, 5),
+    (2, 3),
+    (2, 6),
+    (3, 7),
+    (4, 5),
+    (4, 6),
+    (5, 7),
+    (6, 7),
+]
 
 
 STARTING_SIDES = [
-        (0, 1, 3, 2),
-        (1, 5, 7, 3),
-        (0, 1, 5, 4),
-        (0, 4, 6, 2),
-        (2, 6, 7, 3),
-        (4, 5, 7, 6),
-    ]
+    (0, 1, 3, 2),
+    (1, 5, 7, 3),
+    (0, 1, 5, 4),
+    (0, 4, 6, 2),
+    (2, 6, 7, 3),
+    (4, 5, 7, 6),
+]
+
+
+# Draw infinite floor next!
+class Floor:
+    def __init__(self, color, level):
+        self.color = color
+        
+    def draw(self, screen):
+        pass
 
 
 class Dot:
@@ -164,6 +164,7 @@ class DrawManager:
             mouse_cols = mouse_cols[:1]
         return mouse_cols
 
+
 class Connection:
     def __init__(self, column1, column2, base_length, damp_const, string_const):
         self.col1 = column1
@@ -171,6 +172,7 @@ class Connection:
         self.l = base_length
         self.c = damp_const
         self.k = string_const
+
 
 class Engine:
     def __init__(self, position):
@@ -192,11 +194,11 @@ class Engine:
             vec = self.P[:, conn.col1] - self.P[:, conn.col2]
             dist = np.linalg.norm(vec)
             stretch = dist - conn.l
-            A[:,conn.col1] -= vec*stretch*conn.k
-            A[:,conn.col2] += vec*stretch*conn.k
+            A[:, conn.col1] -= vec * stretch * conn.k
+            A[:, conn.col2] += vec * stretch * conn.k
             # Dampening effect
-            A[:, conn.col1] -= conn.c*self.M[:, conn.col1]
-            A[:, conn.col2] -= conn.c*self.M[:, conn.col2]
+            A[:, conn.col1] -= conn.c * self.M[:, conn.col1]
+            A[:, conn.col2] -= conn.c * self.M[:, conn.col2]
 
         self.M += A
         self.P += self.M
@@ -211,7 +213,7 @@ class Engine:
 
     def apply_vertex_shift(self, column, move_vec):
         # Movement occurs in xy plane
-        move_vec = np.append(move_vec, 0) 
+        move_vec = np.append(move_vec, 0)
         self.P[:, column] += move_vec * 0.005
 
     def apply_rotation(self, alpha, beta, gamma):
@@ -249,6 +251,34 @@ class Engine:
         return np.rint(pos_float).astype(int)
 
 
+def setup_engine():
+    # Move back starting position slightly
+    locs = STARTING_LOCATIONS + np.array([[0], [0], [10]], dtype=float)
+    engine = Engine(locs)
+
+    for p1, p2 in STARTING_EDGES:
+        # Base length of all edge connections is 2
+        engine.add_connection(p1, p2, 2, C, K)
+
+    for p1, p2 in STARTING_DIAGS:
+        # Base length of all diag connections is sqrt(2)*2
+        engine.add_connection(p1, p2, np.sqrt(2) * 2, C, K)
+
+    return engine
+
+def setup_draw_manager():
+    draw_manager = DrawManager(screen)
+    for i, side_columns in enumerate(STARTING_SIDES):
+        if i == 5:
+            draw_manager.add_side(ORANGE, side_columns)
+    for line_columns in STARTING_EDGES:
+        draw_manager.add_line(WHITE, line_columns)
+    for line_columns in STARTING_DIAGS:
+        draw_manager.add_line(GRAY, line_columns)
+    for dot_columns in STARTING_DOTS:
+        draw_manager.add_dot(WHITE, dot_columns)
+    
+    return draw_manager
 
 def main_loop():
     dots = STARTING_DOTS
@@ -259,32 +289,8 @@ def main_loop():
 
     rot_x, rot_y, rot_z = BASE_ROT_X, BASE_ROT_Y, BASE_ROT_Z
 
-    # Move back starting position slightly
-    locs = locs + np.array([[0], [0], [10]], dtype=float)
-    engine = Engine(locs)
-    
-    for p1, p2 in edges:
-        # Base length of all edge connections is 2
-        engine.add_connection(p1, p2, 2, C, K)
-
-    for p1, p2 in diags:
-        # Base length of all diag connections is sqrt(2)*2
-        engine.add_connection(p1, p2, np.sqrt(2)*2, C, K)
-
-    # Draw manager setup
-    draw_manager = DrawManager(screen)
-    for i, side_columns in enumerate(sides):
-        if i == 5:
-            draw_manager.add_side(ORANGE, side_columns)
-        else:
-            continue
-            # draw_manager.add_side(BLUE, side_columns)
-    for line_columns in edges:
-        draw_manager.add_line(WHITE, line_columns)
-    for line_columns in diags:
-        draw_manager.add_line(GRAY, line_columns)
-    for dot_columns in dots:
-        draw_manager.add_dot(WHITE, dot_columns)
+    engine = setup_engine()
+    draw_manager = setup_draw_manager()
 
     handle_mouseclick = False
     mouse_drag = False
