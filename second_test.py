@@ -9,8 +9,10 @@ SCREEN_CENTER = np.array([[CX], [CY]])
 
 FOCAL_LENGTH = 1000
 
-C = 0.001
-K = 0.001
+
+C = 0.001   # Dampening constant
+K = 0.001   # Spring constant
+G = 1       # Grativational constant
 
 delta = 0.1
 MV_FWD = delta * np.array([[0], [0], [-1]], dtype=float)
@@ -27,10 +29,9 @@ BLACK = (0, 0, 0)
 BLUE = (66, 135, 245)
 ORANGE = (252, 173, 3)
 GRAY = (100, 100, 100)
+
 screen = pg.display.set_mode((W, H))
 clock = pg.time.Clock()
-
-# Columns -> positions 1 to 7
 
 
 STARTING_LOCATIONS = np.array(
@@ -85,16 +86,6 @@ STARTING_SIDES = [
     (2, 6, 7, 3),
     (4, 5, 7, 6),
 ]
-
-
-# Draw infinite floor next!
-class Floor:
-    def __init__(self, color, level):
-        self.color = color
-        
-    def draw(self, screen):
-        pass
-
 
 class Dot:
     def __init__(self, color, column):
@@ -165,8 +156,20 @@ class DrawManager:
         return mouse_cols
 
 
+# REDO SOON - project onto vector instead
+class Boundary:
+    def __init__(self, a, b, c, d):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+
+    def through_boundary(x, y, z):
+        return self.a*x + self.b*y + self.c*z + d > 0
+
 class Connection:
-    def __init__(self, column1, column2, base_length, damp_const, string_const):
+    def __init__(self, column1, column2, base_length, 
+            damp_const, string_const):
         self.col1 = column1
         self.col2 = column2
         self.l = base_length
@@ -182,10 +185,14 @@ class Engine:
         self.M = np.zeros_like(self.P)
         # con defines connections between vertices
         self.connections = []
+        self.boundaries = []
         self.cog = self.calc_center_of_gravity(self.P)
 
     def add_connection(self, *args):
         self.connections.append(Connection(*args))
+
+    def add_boundary(self, *args):
+        self.boundaries.append(Boundary(*args))
 
     def calc_contraction(self):
         A = np.zeros_like(self.P)
@@ -202,6 +209,10 @@ class Engine:
 
         self.M += A
         self.P += self.M
+
+    def calc_boundaries(self):
+        for boundary in self.boundaries:
+            pass
 
     def calc_center_of_gravity(self, M):
         n_points = np.ma.size(M, 1)
@@ -264,6 +275,8 @@ def setup_engine():
         # Base length of all diag connections is sqrt(2)*2
         engine.add_connection(p1, p2, np.sqrt(2) * 2, C, K)
 
+    engine.add_boundary(1, 3, 4, 5)
+
     return engine
 
 def setup_draw_manager():
@@ -299,7 +312,7 @@ def main_loop():
     while True:
         dt = clock.tick() / 50
 
-        # Find exit event
+        # Find exit event and mouse presses
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
@@ -335,6 +348,8 @@ def main_loop():
             engine.apply_vertex_shift(drag_column, mouse_move)
         else:
             engine.calc_contraction()
+            engine.calc_boundaries()
+
 
         draw_manager.S = engine.get_screen_location()
 
