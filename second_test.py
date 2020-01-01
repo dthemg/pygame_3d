@@ -9,6 +9,9 @@ SCREEN_CENTER = np.array([[CX], [CY]])
 
 FOCAL_LENGTH = 1000
 
+C = 0.001
+K = 0.001
+
 delta = 0.1
 MV_FWD = delta * np.array([[0], [0], [-1]], dtype=float)
 MV_BCK = delta * np.array([[0], [0], [1]], dtype=float)
@@ -16,21 +19,21 @@ MV_RIGHT = delta * np.array([[-1], [0], [0]], dtype=float)
 MV_LEFT = delta * np.array([[1], [0], [0]], dtype=float)
 
 POINT_SIZE = 6
-LINE_SIZE = 3
+
+BASE_ROT_X, BASE_ROT_Y, BASE_ROT_Z = 0.0004, 0.0015, 0.0003
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 BLUE = (66, 135, 245)
 ORANGE = (252, 173, 3)
-
+GRAY = (100, 100, 100)
 screen = pg.display.set_mode((W, H))
 clock = pg.time.Clock()
 
 # Columns -> positions 1 to 7
 
 
-def get_starting_locations():
-    return np.array(
+STARTING_LOCATIONS =  np.array(
         [
             [-1, 1, -1, 1, -1, 1, -1, 1],
             [1, 1, -1, -1, 1, 1, -1, -1],
@@ -40,12 +43,34 @@ def get_starting_locations():
     )
 
 
-def get_starting_dots():
-    return [(0), (1), (2), (3), (4), (5), (6), (7)]
+STARTING_DOTS = [
+        (0), 
+        (1), 
+        (2), 
+        (3), 
+        (4), 
+        (5), 
+        (6),
+        (7)
+    ]
 
 
-def get_starting_lines():
-    return [
+STARTING_DIAGS = [
+        (0, 3),
+        (1, 7), 
+        (5, 6),
+        (4, 2),
+        (1, 4),
+        (3, 6),
+        (1, 2),
+        (3, 5), 
+        (4, 7),
+        (0, 6),
+        (0, 5),
+        (2, 7)
+    ]
+
+STARTING_EDGES = [
         (0, 1),
         (0, 2),
         (0, 4),
@@ -61,8 +86,7 @@ def get_starting_lines():
     ]
 
 
-def get_starting_sides():
-    return [
+STARTING_SIDES = [
         (0, 1, 3, 2),
         (1, 5, 7, 3),
         (0, 1, 5, 4),
@@ -140,11 +164,42 @@ class DrawManager:
             mouse_cols = mouse_cols[:1]
         return mouse_cols
 
+class Connection:
+    def __init__(self, column1, column2, base_length, damp_const, string_const):
+        self.col1 = column1
+        self.col2 = column2
+        self.l = base_length
+        self.c = damp_const
+        self.k = string_const
 
 class Engine:
     def __init__(self, position):
+        # P defines current 3d positions of vertices
         self.P = position
+        # M defines vertex movement
+        self.M = np.zeros_like(self.P)
+        # con defines connections between vertices
+        self.connections = []
         self.cog = self.calc_center_of_gravity(self.P)
+
+    def add_connection(self, *args):
+        self.connections.append(Connection(*args))
+
+    def calc_contraction(self):
+        A = np.zeros_like(self.P)
+        for conn in self.connections:
+            # Spring force acceleration
+            vec = self.P[:, conn.col1] - self.P[:, conn.col2]
+            dist = np.linalg.norm(vec)
+            stretch = dist - conn.l
+            A[:,conn.col1] -= vec*stretch*conn.k
+            A[:,conn.col2] += vec*stretch*conn.k
+            # Dampening effect
+            A[:, conn.col1] -= conn.c*self.M[:, conn.col1]
+            A[:, conn.col2] -= conn.c*self.M[:, conn.col2]
+
+        self.M += A
+        self.P += self.M
 
     def calc_center_of_gravity(self, M):
         n_points = np.ma.size(M, 1)
@@ -194,13 +249,27 @@ class Engine:
         return np.rint(pos_float).astype(int)
 
 
-def main_loop(dots, locs, lines, sides):
-    base_rot_x, base_rot_y, base_rot_z = 0.0004, 0.0015, 0.0003
-    rot_x, rot_y, rot_z = base_rot_x, base_rot_y, base_rot_z
+
+def main_loop():
+    dots = STARTING_DOTS
+    locs = STARTING_LOCATIONS
+    edges = STARTING_EDGES
+    diags = STARTING_DIAGS
+    sides = STARTING_SIDES
+
+    rot_x, rot_y, rot_z = BASE_ROT_X, BASE_ROT_Y, BASE_ROT_Z
 
     # Move back starting position slightly
     locs = locs + np.array([[0], [0], [10]], dtype=float)
     engine = Engine(locs)
+    
+    for p1, p2 in edges:
+        # Base length of all edge connections is 2
+        engine.add_connection(p1, p2, 2, C, K)
+
+    for p1, p2 in diags:
+        # Base length of all diag connections is sqrt(2)*2
+        engine.add_connection(p1, p2, np.sqrt(2)*2, C, K)
 
     # Draw manager setup
     draw_manager = DrawManager(screen)
@@ -210,8 +279,10 @@ def main_loop(dots, locs, lines, sides):
         else:
             continue
             # draw_manager.add_side(BLUE, side_columns)
-    for line_columns in lines:
+    for line_columns in edges:
         draw_manager.add_line(WHITE, line_columns)
+    for line_columns in diags:
+        draw_manager.add_line(GRAY, line_columns)
     for dot_columns in dots:
         draw_manager.add_dot(WHITE, dot_columns)
 
@@ -235,9 +306,8 @@ def main_loop(dots, locs, lines, sides):
                     pg.mouse.get_rel()
             elif event.type == pg.MOUSEBUTTONUP:
                 if event.button == 1:
-                    rot_x, rot_y, rot_z = base_rot_x, base_rot_y, base_rot_z
+                    rot_x, rot_y, rot_z = BASE_ROT_X, BASE_ROT_Y, BASE_ROT_Z
                     mouse_drag = False
-                    drag_column = None
 
         # Handle key presses
         camera_movement = np.array([[0], [0], [0]], dtype=float)
@@ -257,6 +327,8 @@ def main_loop(dots, locs, lines, sides):
         if mouse_drag:
             mouse_move = np.array(pg.mouse.get_rel(), dtype=float)
             engine.apply_vertex_shift(drag_column, mouse_move)
+        else:
+            engine.calc_contraction()
 
         draw_manager.S = engine.get_screen_location()
 
@@ -277,11 +349,7 @@ def main_loop(dots, locs, lines, sides):
 
 
 def main():
-    locs = get_starting_locations()
-    dots = get_starting_dots()
-    lines = get_starting_lines()
-    sides = get_starting_sides()
-    main_loop(dots, locs, lines, sides)
+    main_loop()
 
 
 if __name__ == "__main__":
