@@ -25,7 +25,9 @@ def setup_engine():
         # Base length of all diag connections is sqrt(2)*2
         engine.add_connection(p1, p2, np.sqrt(2) * 2, const.C, const.K)
 
+    # TODO: work on boundary checks & gravitational pull
     engine.add_boundary(1, 3, 4, 5)
+    engine.set_rotation(const.BASE_ROT_X, const.BASE_ROT_Y, const.BASE_ROT_Z)
 
     return engine
 
@@ -46,8 +48,6 @@ def setup_draw_manager():
 
 
 def main_loop():
-    rot_x, rot_y, rot_z = const.BASE_ROT_X, const.BASE_ROT_Y, const.BASE_ROT_Z
-
     engine = setup_engine()
     draw_manager = setup_draw_manager()
 
@@ -71,11 +71,11 @@ def main_loop():
                     pg.mouse.get_rel()
             elif event.type == pg.MOUSEBUTTONUP:
                 if event.button == 1:
-                    rot_x, rot_y, rot_z = (
-                        const.BASE_ROT_X,
-                        const.BASE_ROT_Y,
-                        const.BASE_ROT_Z,
-                    )
+                    engine.set_rotation(
+                        const.BASE_ROT_X, 
+                        const.BASE_ROT_Y, 
+                        const.BASE_ROT_Z)
+                    
                     mouse_drag = False
 
         # Handle key presses
@@ -92,7 +92,7 @@ def main_loop():
 
         # Calculate new positions
         engine.apply_movement(camera_movement)
-        engine.apply_rotation(rot_x, rot_y, rot_z)
+        engine.apply_rotation()
         if mouse_drag:
             mouse_move = np.array(pg.mouse.get_rel(), dtype=float)
             engine.apply_vertex_shift(drag_column, mouse_move)
@@ -107,7 +107,7 @@ def main_loop():
             if mouse_col.size > 0:
                 mouse_drag = True
                 drag_column = mouse_col[0]
-                rot_x, rot_y, rot_z = 0, 0, 0
+                engine.set_rotation(0, 0, 0)
             handle_mouseclick = False
 
         # Draw all items

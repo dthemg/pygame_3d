@@ -29,11 +29,15 @@ class Engine:
         self.P = position
         # M defines vertex movement
         self.M = np.zeros_like(self.P)
-        # con defines connections between vertices
+        # spring connections between vertices
         self.connections = []
+        # Limits of engine objects
         self.boundaries = []
+        # Static rotation
+        self.rot_x, self.rot_y, self.rot_z = 0, 0, 0
         self.cog = self.calc_center_of_gravity(self.P)
         self.screen_center = np.array([[const.CX], [const.CY]])
+
 
     def add_connection(self, *args):
         self.connections.append(Connection(*args))
@@ -61,6 +65,11 @@ class Engine:
         for boundary in self.boundaries:
             pass
 
+    def set_rotation(self, rot_x, rot_y, rot_z):
+        self.rot_x = rot_x
+        self.rot_y = rot_y
+        self.rot_z = rot_z
+
     def calc_center_of_gravity(self, M):
         n_points = np.ma.size(M, 1)
         return (1 / n_points * np.sum(M, 1)).reshape(3, 1)
@@ -74,27 +83,27 @@ class Engine:
         move_vec = np.append(move_vec, 0)
         self.P[:, column] += move_vec * 0.005
 
-    def apply_rotation(self, alpha, beta, gamma):
+    def apply_rotation(self):
         A = np.array(
             [
                 [1, 0, 0],
-                [0, np.cos(alpha), np.sin(alpha)],
-                [0, -np.sin(alpha), np.cos(alpha)],
+                [0, np.cos(self.rot_x), np.sin(self.rot_x)],
+                [0, -np.sin(self.rot_x), np.cos(self.rot_x)],
             ],
             dtype=float,
         )
         B = np.array(
             [
-                [np.cos(beta), 0, -np.sin(beta)],
+                [np.cos(self.rot_y), 0, -np.sin(self.rot_y)],
                 [0, 1, 0],
-                [np.sin(beta), 0, np.cos(beta)],
+                [np.sin(self.rot_y), 0, np.cos(self.rot_y)],
             ],
             dtype=float,
         )
         C = np.array(
             [
-                [np.cos(gamma), np.sin(gamma), 0],
-                [-np.sin(gamma), np.cos(gamma), 0],
+                [np.cos(self.rot_z), np.sin(self.rot_z), 0],
+                [-np.sin(self.rot_z), np.cos(self.rot_z), 0],
                 [0, 0, 1],
             ],
             dtype=float,
