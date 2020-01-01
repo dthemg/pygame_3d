@@ -1,7 +1,7 @@
 import numpy as np
 
 # Physics constants
-C = 0.001  # Dampening constant
+C = 0.005  # Dampening constant
 K = 0.001  # Spring constant
 G = 1  # Grativational constant
 

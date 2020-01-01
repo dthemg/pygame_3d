@@ -27,7 +27,8 @@ def setup_engine():
 
     # TODO: work on boundary checks & gravitational pull
     engine.add_boundary(1, 3, 4, 5)
-    engine.set_rotation(const.BASE_ROT_X, const.BASE_ROT_Y, const.BASE_ROT_Z)
+    engine.set_static_rotation(const.BASE_ROT_X, 
+                        const.BASE_ROT_Y, const.BASE_ROT_Z)
 
     return engine
 
@@ -71,7 +72,7 @@ def main_loop():
                     pg.mouse.get_rel()
             elif event.type == pg.MOUSEBUTTONUP:
                 if event.button == 1:
-                    engine.set_rotation(
+                    engine.set_static_rotation(
                         const.BASE_ROT_X, 
                         const.BASE_ROT_Y, 
                         const.BASE_ROT_Z)
@@ -82,13 +83,13 @@ def main_loop():
         camera_movement = np.array([[0], [0], [0]], dtype=float)
         keys = pg.key.get_pressed()
         if keys[pg.K_UP]:
-            camera_movement += MV_FWD
+            camera_movement += const.MV_FWD
         if keys[pg.K_DOWN]:
-            camera_movement += MV_BCK
+            camera_movement += const.MV_BCK
         if keys[pg.K_LEFT]:
-            camera_movement += MV_LEFT
+            camera_movement += const.MV_LEFT
         if keys[pg.K_RIGHT]:
-            camera_movement += MV_RIGHT
+            camera_movement += const.MV_RIGHT
 
         # Calculate new positions
         engine.apply_movement(camera_movement)
@@ -107,7 +108,7 @@ def main_loop():
             if mouse_col.size > 0:
                 mouse_drag = True
                 drag_column = mouse_col[0]
-                engine.set_rotation(0, 0, 0)
+                engine.set_static_rotation(0, 0, 0)
             handle_mouseclick = False
 
         # Draw all items

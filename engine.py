@@ -65,7 +65,7 @@ class Engine:
         for boundary in self.boundaries:
             pass
 
-    def set_rotation(self, rot_x, rot_y, rot_z):
+    def set_static_rotation(self, rot_x, rot_y, rot_z):
         self.rot_x = rot_x
         self.rot_y = rot_y
         self.rot_z = rot_z
